@@ -1,0 +1,19 @@
+{
+  "name": "justsay-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JUSTSAY Multi-App Monorepo",
+  "scripts": {
+    "build": "cd apps/api && npm run build",
+    "test": "cd apps/api && npm run test",
+    "lint": "cd apps/api && npm run lint"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

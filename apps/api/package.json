@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "dev": "ts-node src/main.ts",
-    "test": "echo \"API unit tests passed\" && exit 0",
+    "test": "npx ts-node src/test/api.test.ts",
     "lint": "echo \"API lint passed\" && exit 0"
   },
   "dependencies": {

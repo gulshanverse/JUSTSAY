@@ -113,57 +113,56 @@ class WhisprRepository(private val dao: WhisprDao) {
     suspend fun seedSampleDataIfEmpty() {
         val existingPref = dao.getPreference("user_handle")
         if (existingPref == null) {
-            dao.setPreference(UserPreferenceEntity("user_handle", "genz_star"))
-            dao.setPreference(UserPreferenceEntity("admin_pin", "admin123"))
+            dao.setPreference(UserPreferenceEntity("user_handle", "user"))
             dao.setPreference(UserPreferenceEntity("safety_strictness", "Medium"))
-            dao.setPreference(UserPreferenceEntity("link_click_count", "142"))
+            dao.setPreference(UserPreferenceEntity("link_click_count", "0"))
             dao.setPreference(UserPreferenceEntity("active_theme", "Neon Cyber"))
 
             // Sample confessions
             val samples = listOf(
                 ConfessionEntity(
-                    recipientHandle = "genz_star",
+                    recipientHandle = "user",
                     promptQuestion = "send me honest confessions 🤫",
                     messageText = "I've had a crush on you since high school chemistry class! 💖",
                     cardGradientStart = 0xFFFF2A85,
                     cardGradientEnd = 0xFF9B5DE5,
                     stickerTag = "💖 Crush Alert",
-                    senderHint = "Sent from iPhone 15 Pro • iOS 18 in Chicago",
+                    senderHint = "Sent via Web Client 🌐",
                     sentiment = "Positive"
                 ),
                 ConfessionEntity(
-                    recipientHandle = "genz_star",
+                    recipientHandle = "user",
                     promptQuestion = "what's my biggest red flag? 🚩",
                     messageText = "Honestly? You take 4 hours to reply to texts even when you're active online 💀",
                     cardGradientStart = 0xFFFF7B00,
                     cardGradientEnd = 0xFFFF0266,
                     stickerTag = "💀 Crying",
-                    senderHint = "From someone in your Instagram close friends list",
+                    senderHint = "From someone who follows your profile ✨",
                     sentiment = "Neutral"
                 ),
                 ConfessionEntity(
-                    recipientHandle = "genz_star",
+                    recipientHandle = "user",
                     promptQuestion = "rate my vibe 1-10 ✨",
                     messageText = "Absolute 11/10 main character energy! Keep slaying! 💅✨",
                     cardGradientStart = 0xFF00F5D4,
                     cardGradientEnd = 0xFF7B2CBF,
                     stickerTag = "💅 Slay",
-                    senderHint = "Sent late night at 1:12 AM",
+                    senderHint = "Sent late night 🌙",
                     sentiment = "Positive",
                     isFavorite = true
                 ),
                 ConfessionEntity(
-                    recipientHandle = "genz_star",
+                    recipientHandle = "user",
                     promptQuestion = "spill the tea ☕",
                     messageText = "Your ex was seen at the music festival with someone who looks just like you...",
                     cardGradientStart = 0xFF9B5DE5,
                     cardGradientEnd = 0xFF240046,
                     stickerTag = "👀 Spill The Tea",
-                    senderHint = "Sent from Web Client • Android 14",
+                    senderHint = "Sent via Mobile Web 📱",
                     sentiment = "Neutral"
                 ),
                 ConfessionEntity(
-                    recipientHandle = "genz_star",
+                    recipientHandle = "user",
                     promptQuestion = "send me honest confessions 🤫",
                     messageText = "You are a total loser and no one likes you!",
                     cardGradientStart = 0xFF3A0CA3,
