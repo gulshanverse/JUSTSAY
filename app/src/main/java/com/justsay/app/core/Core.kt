@@ -26,6 +26,9 @@ object AppLogger {
 
 class TokenManager {
     private var adminToken: String? = null
+    private var userAccessToken: String? = null
+    private var userRefreshToken: String? = null
+    private var currentHandle: String = "user"
 
     fun saveAdminToken(token: String) {
         adminToken = token
@@ -38,4 +41,40 @@ class TokenManager {
     }
 
     fun hasValidAdminSession(): Boolean = !adminToken.isNullOrBlank()
+
+    fun saveUserSession(accessToken: String, refreshToken: String, handle: String) {
+        this.userAccessToken = accessToken
+        this.userRefreshToken = refreshToken
+        this.currentHandle = handle
+    }
+
+    fun getUserAccessToken(): String? = userAccessToken
+
+    fun getUserRefreshToken(): String? = userRefreshToken
+
+    fun getCurrentHandle(): String = currentHandle
+
+    fun clearUserSession() {
+        this.userAccessToken = null
+        this.userRefreshToken = null
+        this.currentHandle = "user"
+    }
+
+    fun isLoggedIn(): Boolean = !userAccessToken.isNullOrBlank()
+}
+
+object AnalyticsLogger {
+    private val eventHistory = mutableListOf<String>()
+    private val sensitiveKeys = setOf("password", "token", "accesstoken", "refreshtoken", "secret", "authorization", "messagetext", "ip", "devicefingerprint")
+
+    fun logEvent(eventName: String, properties: Map<String, String> = emptyMap()) {
+        val sanitized = properties.mapValues { (key, value) ->
+            if (sensitiveKeys.contains(key.lowercase())) "[REDACTED]" else value
+        }
+        val entry = "[$eventName] ${sanitized.entries.joinToString { "${it.key}=${it.value}" }}"
+        eventHistory.add(entry)
+        AppLogger.i("ANALYTICS: $entry")
+    }
+
+    fun getHistory(): List<String> = eventHistory.toList()
 }

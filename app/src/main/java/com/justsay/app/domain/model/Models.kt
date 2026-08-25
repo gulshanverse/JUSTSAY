@@ -36,9 +36,13 @@ data class Message(
 
 data class UserProfile(
     val handle: String = "user",
+    val displayName: String = "JUSTSAY Member",
+    val bio: String = "Ask me anything anonymously! 🤫",
     val activePrompt: String = "send me honest confessions 🤫",
     val linkClicks: Int = 0
-)
+) {
+    val promptQuestion: String get() = activePrompt
+}
 
 data class CardDesign(
     val gradientStart: Long = 0xFFFF2A85,

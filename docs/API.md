@@ -5,29 +5,27 @@ Base URL: `/api/v1`
 ## System & Health
 - `GET /api/v1/health` - Health check status & uptime
 
-## User & Profile Management
-- `GET /api/v1/profile/:handle` - Retrieve recipient profile & active confession card prompt
-- `POST /api/v1/profile` - Create or update user handle and preferences
+## Authentication & Account
+- `POST /api/v1/auth/register` - Register new account with scrypt password hashing
+- `POST /api/v1/auth/login` - Authenticate account and receive opaque session token
+- `POST /api/v1/auth/logout` - Revoke current session token
+- `DELETE /api/v1/users/account` - Delete account and revoke all sessions
+
+## Handles & User Profile
+- `POST /api/v1/handles/check` - Check handle availability
+- `GET /api/v1/users/profile/:handle` - Public profile lookup
+- `PATCH /api/v1/users/profile` - Update profile bio, prompt, preferences (Authenticated)
 
 ## Messages & Inbox
-- `POST /api/v1/messages` - Submit an anonymous confession message
-- `GET /api/v1/messages` - Retrieve recipient inbox messages (Authenticated)
+- `POST /api/v1/messages` - Post anonymous message (Rate limited, validated, moderated)
+- `GET /api/v1/messages?filter=all|unread|favorites|flagged` - Recipient inbox (Authenticated)
 - `PATCH /api/v1/messages/:id/read` - Mark message as read
-- `POST /api/v1/messages/:id/reactions` - Toggle favorite / heart reaction
-- `POST /api/v1/messages/:id/replies` - Attach public story reply to message
-- `POST /api/v1/messages/:id/report` - Submit harassment / abuse report
-- `POST /api/v1/users/:id/block` - Block anonymous sender pattern
+- `PATCH /api/v1/messages/:id/favorite` - Toggle message favorite status
+- `POST /api/v1/messages/:id/reactions` - Add reaction emoji (`❤️`, `😂`, `😭`, `👀`, `🔥`, `💀`)
+- `POST /api/v1/messages/:id/replies` - Recipient reply to message
+- `POST /api/v1/messages/:id/report` - Report message (Harassment, Threat, Hate, Sexual content, Spam, Self-harm, Scam, Other)
+- `POST /api/v1/messages/:id/block` - Block anonymous sender from sending future messages to this recipient
+- `DELETE /api/v1/messages/:id` - Delete message from inbox
 
-## Card Studio
-- `GET /api/v1/cards/templates` - Fetch curated card design templates
-- `POST /api/v1/cards` - Save custom card studio design project
-- `PATCH /api/v1/cards/:id` - Update card design parameters
-
-## Media Management
-- `POST /api/v1/media/upload` - Request presigned URL for story background upload
-
-## Admin & Telemetry (RBAC Required)
-- `GET /api/v1/admin/moderation` - Fetch flagged moderation cases
-- `POST /api/v1/admin/moderation/:id/approve` - Approve flagged message
-- `POST /api/v1/admin/moderation/:id/reject` - Delete/Reject flagged message
-- `GET /api/v1/admin/audit-logs` - Retrieve system telemetry audit events
+## Public Web
+- `GET /u/:handle` - Public mobile-first web sender page with XSS escaping

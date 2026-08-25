@@ -8,6 +8,28 @@ import com.justsay.app.domain.model.ModerationState
 import com.justsay.app.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
+data class HandleCheckResult(
+    val handle: String,
+    val isAvailable: Boolean,
+    val reason: String? = null
+)
+
+data class AuthResult(
+    val success: Boolean,
+    val userHandle: String? = null,
+    val accessToken: String? = null,
+    val error: String? = null
+)
+
+interface AuthRepository {
+    fun isUserLoggedIn(): Boolean
+    fun getCurrentUserHandle(): String
+    suspend fun register(email: String, password: String, handle: String, displayName: String): AuthResult
+    suspend fun login(email: String, password: String): AuthResult
+    suspend fun logout()
+    suspend fun deleteAccount(): Boolean
+}
+
 interface MessageRepository {
     fun getInboxMessages(): Flow<List<Message>>
     fun getFlaggedMessages(): Flow<List<Message>>
@@ -22,7 +44,18 @@ interface MessageRepository {
 
 interface ProfileRepository {
     fun getUserProfile(): Flow<UserProfile>
+    suspend fun checkHandleAvailability(handle: String): HandleCheckResult
     suspend fun updateHandle(newHandle: String)
+    suspend fun updateProfileDetails(
+        displayName: String,
+        bio: String,
+        promptQuestion: String,
+        anonymousEnabled: Boolean,
+        allowImages: Boolean,
+        allowReplies: Boolean,
+        allowReactions: Boolean,
+        isPublic: Boolean
+    ): Boolean
     suspend fun incrementLinkClicks()
     suspend fun getSafetyStrictness(): String
     suspend fun setSafetyStrictness(level: String)

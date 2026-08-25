@@ -13,7 +13,10 @@ import com.justsay.app.domain.model.Message
 import com.justsay.app.domain.model.ModerationState
 import com.justsay.app.domain.model.UserProfile
 import com.justsay.app.domain.repository.AdminAuthRepository
+import com.justsay.app.domain.repository.AuthRepository
+import com.justsay.app.domain.repository.AuthResult
 import com.justsay.app.domain.repository.FeatureFlagRepository
+import com.justsay.app.domain.repository.HandleCheckResult
 import com.justsay.app.domain.repository.MessageRepository
 import com.justsay.app.domain.repository.ModerationEvaluationResult
 import com.justsay.app.domain.repository.ModerationService
@@ -22,6 +25,83 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+
+class AuthRepositoryImpl(
+    private val dao: JustSayDao,
+    private val tokenManager: TokenManager
+) : AuthRepository {
+
+    override fun isUserLoggedIn(): Boolean {
+        return tokenManager.isLoggedIn()
+    }
+
+    override fun getCurrentUserHandle(): String {
+        return tokenManager.getCurrentHandle()
+    }
+
+    override suspend fun register(
+        email: String,
+        password: String,
+        handle: String,
+        displayName: String
+    ): AuthResult {
+        val cleanHandle = handle.lowercase().trim()
+        val reserved = setOf("admin", "justsay", "official", "support", "help", "mod", "system", "root")
+
+        if (cleanHandle.length < 3 || cleanHandle.length > 30) {
+            return AuthResult(success = false, error = "Handle must be between 3 and 30 characters")
+        }
+        if (!cleanHandle.matches(Regex("^[a-z0-9_]+$"))) {
+            return AuthResult(success = false, error = "Handle can only contain lowercase letters, numbers, and underscores")
+        }
+        if (reserved.contains(cleanHandle)) {
+            return AuthResult(success = false, error = "Handle '$cleanHandle' is reserved")
+        }
+
+        val mockAccessToken = "jwt_access_${System.currentTimeMillis()}"
+        val mockRefreshToken = "jwt_refresh_${System.currentTimeMillis()}"
+
+        tokenManager.saveUserSession(mockAccessToken, mockRefreshToken, cleanHandle)
+        dao.setPreference(UserPreferenceEntity("user_handle", cleanHandle))
+        dao.setPreference(UserPreferenceEntity("display_name", displayName.ifBlank { cleanHandle }))
+        dao.setPreference(UserPreferenceEntity("user_email", email))
+
+        return AuthResult(
+            success = true,
+            userHandle = cleanHandle,
+            accessToken = mockAccessToken
+        )
+    }
+
+    override suspend fun login(email: String, password: String): AuthResult {
+        if (!email.contains("@") || password.length < 8) {
+            return AuthResult(success = false, error = "Invalid email or password")
+        }
+
+        val existingHandle = dao.getPreference("user_handle") ?: "user"
+        val mockAccessToken = "jwt_access_${System.currentTimeMillis()}"
+        val mockRefreshToken = "jwt_refresh_${System.currentTimeMillis()}"
+
+        tokenManager.saveUserSession(mockAccessToken, mockRefreshToken, existingHandle)
+
+        return AuthResult(
+            success = true,
+            userHandle = existingHandle,
+            accessToken = mockAccessToken
+        )
+    }
+
+    override suspend fun logout() {
+        tokenManager.clearUserSession()
+    }
+
+    override suspend fun deleteAccount(): Boolean {
+        tokenManager.clearUserSession()
+        dao.clearAllMessages()
+        dao.setPreference(UserPreferenceEntity("user_handle", "user"))
+        return true
+    }
+}
 
 class MessageRepositoryImpl(
     private val dao: JustSayDao,
@@ -49,7 +129,6 @@ class MessageRepositoryImpl(
         val strictness = dao.getPreference("safety_strictness") ?: "Medium"
         val modResult = moderationService.evaluateMessage(messageText, strictness)
 
-        // Privacy preserving coarse hints only (No device serials or GPS)
         val coarseHints = listOf(
             "Sent via Web Client 🌐",
             "Sent late night 🌙",
@@ -148,10 +227,34 @@ class ProfileRepositoryImpl(private val dao: JustSayDao) : ProfileRepository {
     override fun getUserProfile(): Flow<UserProfile> {
         return dao.getAllPreferences().map { prefs ->
             val handle = prefs.find { it.key == "user_handle" }?.value ?: "user"
+            val displayName = prefs.find { it.key == "display_name" }?.value ?: "JUSTSAY Member"
+            val bio = prefs.find { it.key == "bio" }?.value ?: "Ask me anything anonymously! 🤫"
             val prompt = prefs.find { it.key == "active_prompt" }?.value ?: "send me honest confessions 🤫"
             val clicks = prefs.find { it.key == "link_click_count" }?.value?.toIntOrNull() ?: 0
-            UserProfile(handle, prompt, clicks)
+            UserProfile(
+                handle = handle,
+                displayName = displayName,
+                bio = bio,
+                activePrompt = prompt,
+                linkClicks = clicks
+            )
         }
+    }
+
+    override suspend fun checkHandleAvailability(handle: String): HandleCheckResult {
+        val clean = handle.lowercase().trim()
+        val reserved = setOf("admin", "justsay", "official", "support", "help", "mod", "system", "root")
+
+        if (clean.length < 3 || clean.length > 30) {
+            return HandleCheckResult(clean, false, "Must be 3-30 characters")
+        }
+        if (!clean.matches(Regex("^[a-z0-9_]+$"))) {
+            return HandleCheckResult(clean, false, "Only letters, numbers & underscores allowed")
+        }
+        if (reserved.contains(clean)) {
+            return HandleCheckResult(clean, false, "Reserved handle")
+        }
+        return HandleCheckResult(clean, true)
     }
 
     override suspend fun updateHandle(newHandle: String) {
@@ -159,6 +262,27 @@ class ProfileRepositoryImpl(private val dao: JustSayDao) : ProfileRepository {
         if (clean.isNotBlank()) {
             dao.setPreference(UserPreferenceEntity("user_handle", clean))
         }
+    }
+
+    override suspend fun updateProfileDetails(
+        displayName: String,
+        bio: String,
+        promptQuestion: String,
+        anonymousEnabled: Boolean,
+        allowImages: Boolean,
+        allowReplies: Boolean,
+        allowReactions: Boolean,
+        isPublic: Boolean
+    ): Boolean {
+        dao.setPreference(UserPreferenceEntity("display_name", displayName))
+        dao.setPreference(UserPreferenceEntity("bio", bio))
+        dao.setPreference(UserPreferenceEntity("active_prompt", promptQuestion))
+        dao.setPreference(UserPreferenceEntity("anonymous_enabled", anonymousEnabled.toString()))
+        dao.setPreference(UserPreferenceEntity("allow_images", allowImages.toString()))
+        dao.setPreference(UserPreferenceEntity("allow_replies", allowReplies.toString()))
+        dao.setPreference(UserPreferenceEntity("allow_reactions", allowReactions.toString()))
+        dao.setPreference(UserPreferenceEntity("is_public", isPublic.toString()))
+        return true
     }
 
     override suspend fun incrementLinkClicks() {
@@ -234,8 +358,6 @@ class AdminAuthRepositoryImpl(
     override fun getAdminSession(): Flow<AdminSession> = _sessionFlow.asStateFlow()
 
     override suspend fun authenticateWithToken(token: String): Boolean {
-        // Real Server Authentication Token Validation (RBAC)
-        // No client-side hardcoded PINs (admin123) are permitted!
         val isValidToken = token.isNotBlank() && (token.startsWith("Bearer ") || token.startsWith("admin_token_"))
         
         if (isValidToken) {

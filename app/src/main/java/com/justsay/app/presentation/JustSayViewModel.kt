@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.justsay.app.core.TokenManager
 import com.justsay.app.data.local.JustSayDatabase
 import com.justsay.app.data.repository.AdminAuthRepositoryImpl
+import com.justsay.app.data.repository.AuthRepositoryImpl
 import com.justsay.app.data.repository.MessageRepositoryImpl
 import com.justsay.app.data.repository.ModerationServiceImpl
 import com.justsay.app.data.repository.ProfileRepositoryImpl
@@ -50,12 +51,12 @@ class JustSayViewModel(application: Application) : AndroidViewModel(application)
 
     private val db = JustSayDatabase.getDatabase(application)
     private val dao = db.dao()
-    private val tokenManager = TokenManager()
-
-    private val moderationService = ModerationServiceImpl()
-    private val messageRepository = MessageRepositoryImpl(dao, moderationService)
-    private val profileRepository = ProfileRepositoryImpl(dao)
-    private val adminAuthRepository = AdminAuthRepositoryImpl(dao, tokenManager)
+    val tokenManager = TokenManager()
+    val moderationService = ModerationServiceImpl()
+    val messageRepository = MessageRepositoryImpl(dao, moderationService)
+    val profileRepository = ProfileRepositoryImpl(dao)
+    val authRepository = AuthRepositoryImpl(dao, tokenManager)
+    val adminAuthRepository = AdminAuthRepositoryImpl(dao, tokenManager)
 
     private val getInboxMessagesUseCase = GetInboxMessagesUseCase(messageRepository)
     private val sendAnonymousMessageUseCase = SendAnonymousMessageUseCase(messageRepository, profileRepository)
