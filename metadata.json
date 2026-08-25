@@ -1,0 +1,6 @@
+{
+  "name": "Whispr - GenZ Confessions",
+  "description": "GenZ anonymous confession cards, interactive Q&A links, colorful custom card builder, safety filters, and advanced admin moderation suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
