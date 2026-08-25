@@ -113,3 +113,118 @@ export interface GenericApiResponse {
   success: boolean;
   error?: string;
 }
+
+// --- CARD STUDIO CONTRACTS ---
+export interface CreateCardProjectRequest {
+  title: string;
+  canvasRatio: 'STORY_9_16' | 'SQUARE_1_1' | 'PORTRAIT_4_5';
+  background: {
+    type: 'SOLID' | 'GRADIENT' | 'PRESET';
+    colorHex: string;
+    gradientStartHex?: string;
+    gradientEndHex?: string;
+    gradientAngleDegrees?: number;
+    presetName?: string;
+  };
+  elements: any[];
+  templateId?: string;
+  sourceMessageId?: string;
+  includeBranding?: boolean;
+}
+
+export interface UpdateCardProjectRequest {
+  title?: string;
+  canvasRatio?: 'STORY_9_16' | 'SQUARE_1_1' | 'PORTRAIT_4_5';
+  background?: any;
+  elements?: any[];
+  includeBranding?: boolean;
+}
+
+export interface CardProjectResponse {
+  success: boolean;
+  project?: any;
+  error?: string;
+}
+
+export interface ListCardProjectsResponse {
+  projects: any[];
+}
+
+export interface ListCardTemplatesResponse {
+  templates: any[];
+}
+
+export interface ListStickersResponse {
+  stickers: any[];
+}
+
+export interface CreateCardFromMessageRequest {
+  messageId: string;
+  templateId?: string;
+}
+
+export interface UploadMediaRequest {
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  width?: number;
+  height?: number;
+  base64Content?: string;
+}
+
+export interface UploadMediaResponse {
+  success: boolean;
+  asset?: any;
+  error?: string;
+}
+
+// --- PHASE 6 CONTRACTS ---
+export interface AdminModerationActionRequest {
+  adminToken: string;
+  reason?: string;
+}
+
+export interface ListFeatureFlagsResponse {
+  flags: any[];
+}
+
+export interface UpdateFeatureFlagRequest {
+  adminToken: string;
+  enabled?: boolean;
+  rolloutPercentage?: number;
+}
+
+export interface EvaluateFeatureFlagRequest {
+  flagKey: string;
+  userHandle?: string;
+}
+
+export interface EvaluateFeatureFlagResponse {
+  flagKey: string;
+  enabled: boolean;
+}
+
+export interface TrackAnalyticsEventRequest {
+  eventName: string;
+  properties?: Record<string, any>;
+}
+
+export interface GetFunnelAnalyticsResponse {
+  funnelSteps: Array<{
+    step: string;
+    count: number;
+    conversionRatePercentage: number;
+  }>;
+}
+
+export interface AdminUserActionRequest {
+  adminToken: string;
+  targetHandle: string;
+  reason?: string;
+}
+
+export interface RequestDataExportResponse {
+  success: boolean;
+  exportPackage?: any;
+  error?: string;
+}

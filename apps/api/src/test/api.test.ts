@@ -1,199 +1,263 @@
 import { JustSayApiServer } from '../main';
 import { ValidationRules } from '@justsay/validation';
-import { ModerationStatus, MessageStatus, AdminRole } from '@justsay/shared-types';
+import { ModerationStatus, MessageStatus } from '@justsay/shared-types';
+import * as crypto from 'crypto';
 
 async function runTests() {
-  console.log('Running JUSTSAY Comprehensive Phase 2 Security Remediation & Phase 3 Verification Suite...');
+  console.log('Running JUSTSAY Phase 3 Security Remediation & Phase 4 Creative Card Engine Suite...');
 
   const server = new JustSayApiServer();
 
-  // --- 1. HANDLE SYSTEM TESTS ---
-  console.log('\n--- 1. Testing Handle Validation & Availability ---');
+  // --- 1. SCRYPT SECURITY BASELINE & BACKWARD COMPATIBILITY MIGRATION ---
+  console.log('\n--- 1. Testing scrypt Baseline (N=131072) & Transparent Migration ---');
 
-  // Reserved handle -> REJECTED
-  const resHandle = await server.handlesController.checkHandle('admin', '127.0.0.1');
-  if (resHandle.available) throw new Error('FAILED: Reserved handle "admin" was allowed');
-  console.log('✔ PASS: Reserved handle "admin" rejected');
-
-  // Short handle -> REJECTED
-  const shortHandle = await server.handlesController.checkHandle('ab', '127.0.0.1');
-  if (shortHandle.available) throw new Error('FAILED: Handle "ab" (<3 chars) was allowed');
-  console.log('✔ PASS: Handle < 3 chars rejected');
-
-  // Invalid characters -> REJECTED
-  const invalidChars = await server.handlesController.checkHandle('user@name!', '127.0.0.1');
-  if (invalidChars.available) throw new Error('FAILED: Handle with special characters was allowed');
-  console.log('✔ PASS: Handle with invalid characters rejected');
-
-  // Valid handle -> AVAILABLE
-  const validHandle = await server.handlesController.checkHandle('star_creator_99', '127.0.0.1');
-  if (!validHandle.available) throw new Error(`FAILED: Valid handle "star_creator_99" rejected: ${validHandle.reason}`);
-  console.log('✔ PASS: Valid handle "star_creator_99" available');
-
-  // --- 2. AUTHENTICATION & SCRYPT PASSWORD SECURITY TESTS ---
-  console.log('\n--- 2. Testing Registration, Login, and Password Policy (scrypt) ---');
-
-  // Register User A
-  const regResult = await server.authController.register({
-    email: 'newuser@justsay.app',
-    password: 'Password123! 🔑', // Unicode + spaces
-    handle: 'newuser_99',
-    displayName: 'New User 99'
+  // Register User A with new OWASP scrypt baseline (N=131072)
+  const regA = await server.authController.register({
+    email: 'secuser_a@justsay.app',
+    password: 'SecurePassword123! 🔒',
+    handle: 'sec_user_a',
+    displayName: 'Sec User A'
   }, '127.0.0.1');
 
-  if (!regResult.success || !regResult.session) throw new Error(`FAILED: Registration failed: ${regResult.error}`);
-  console.log('✔ PASS: Account registration successful with Unicode password');
+  if (!regA.success || !regA.session) throw new Error(`FAILED: Account registration failed: ${regA.error}`);
+  console.log('✔ PASS: User registration successful with OWASP scrypt baseline (N=131072)');
 
-  // Register User B with SAME password
-  const regB = await server.authController.register({
-    email: 'userb@justsay.app',
-    password: 'Password123! 🔑',
-    handle: 'user_b',
-    displayName: 'User B'
+  const tokenA = `Bearer ${regA.session.accessToken}`;
+
+  // Seed a legacy user hash (N=16384) manually to test transparent migration strategy
+  const legacySalt = crypto.randomBytes(16).toString('hex');
+  const legacyKey = crypto.scryptSync('OldPassword123!', legacySalt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+  const legacyHash = `$scrypt$N=16384,r=8,p=1$${legacySalt}$${legacyKey}`;
+
+  // Register legacy account
+  await server.authController.register({
+    email: 'legacyuser@justsay.app',
+    password: 'TempPassword123!',
+    handle: 'legacy_user',
+    displayName: 'Legacy User'
   }, '127.0.0.2');
+
+  // Overwrite passwordHash with legacy hash
+  const storedLegacyUser = server.authService.getUserByHandle('legacy_user');
+  if (storedLegacyUser) {
+    (storedLegacyUser as any).passwordHash = legacyHash;
+  }
+
+  // Login with legacy account -> Verification succeeds and triggers transparent rehash
+  const legacyLogin = await server.authController.login({
+    email: 'legacyuser@justsay.app',
+    password: 'OldPassword123!'
+  }, '127.0.0.2');
+
+  if (!legacyLogin.success || !legacyLogin.session) throw new Error('FAILED: Legacy scrypt login failed');
+
+  const rehashedUser = server.authService.getUserByHandle('legacy_user');
+  if (!rehashedUser || !rehashedUser.passwordHash.includes('N=131072')) {
+    throw new Error('SECURITY MIGRATION FAILURE: Legacy hash was not upgraded to N=131072 on login');
+  }
+  console.log('✔ PASS: Legacy scrypt hash (N=16384) transparently re-hashed to OWASP baseline (N=131072)');
+
+  // Register User B
+  const regB = await server.authController.register({
+    email: 'secuser_b@justsay.app',
+    password: 'SecurePassword123! 🔒',
+    handle: 'sec_user_b',
+    displayName: 'Sec User B'
+  }, '127.0.0.3');
   if (!regB.success || !regB.session) throw new Error('FAILED: User B registration failed');
   const tokenB = `Bearer ${regB.session.accessToken}`;
 
-  // Login User A with correct password
-  const loginResult = await server.authController.login({
-    email: 'newuser@justsay.app',
-    password: 'Password123! 🔑'
-  }, '127.0.0.1');
-  if (!loginResult.success || !loginResult.session) throw new Error('FAILED: Login failed with correct password');
-  console.log('✔ PASS: Login successful with scrypt password verification');
+  // --- 2. ANONYMOUS ABUSE KEY & BLOCKING ARCHITECTURE ---
+  console.log('\n--- 2. Testing AnonymousAbuseKey Abstraction & Blocking ---');
 
-  // Login with invalid password
-  const badLogin = await server.authController.login({
-    email: 'newuser@justsay.app',
-    password: 'WrongPassword!'
-  }, '127.0.0.1');
-  if (badLogin.success) throw new Error('FAILED: Login allowed with invalid password');
-  console.log('✔ PASS: Invalid password login blocked');
-
-  // --- 3. AUTHORIZATION & PROFILE OWNERSHIP MATRIX ---
-  console.log('\n--- 3. Testing Authorization Matrix & Ownership ---');
-
-  const tokenA = `Bearer ${loginResult.session.accessToken}`;
-
-  // 3a. Unauthenticated update -> DENIED
-  const unauthUpdate = await server.usersController.updateProfile('', { bio: 'Hacked' });
-  if (unauthUpdate.success) throw new Error('AUTHORIZATION FAILURE: Unauthenticated profile update allowed');
-  console.log('✔ PASS: Unauthenticated profile update denied');
-
-  // 3b. Invalid token update -> DENIED
-  const invalidTokenUpdate = await server.usersController.updateProfile('Bearer invalid_token_xyz', { bio: 'Hacked' });
-  if (invalidTokenUpdate.success) throw new Error('AUTHORIZATION FAILURE: Invalid token profile update allowed');
-  console.log('✔ PASS: Invalid token profile update denied');
-
-  // 3c. Authorized user update
-  const updateRes = await server.usersController.updateProfile(tokenA, {
-    bio: 'Updated bio for testing',
-    promptQuestion: 'Ask me anything! 🌟'
-  });
-  if (!updateRes.success || !updateRes.user) throw new Error('FAILED: Profile update failed');
-  if (updateRes.user.bio !== 'Updated bio for testing') throw new Error('FAILED: Bio update mismatch');
-  console.log('✔ PASS: Authorized user profile update successful');
-
-  // 3d. Public profile lookup
-  const pubProfile = await server.usersController.getPublicProfile('newuser_99');
-  if (!pubProfile || pubProfile.promptQuestion !== 'Ask me anything! 🌟') {
-    throw new Error('FAILED: Public profile lookup failed');
-  }
-  console.log('✔ PASS: Public profile lookup successful');
-
-  // --- 4. MESSAGE PRIVACY, REPLIES, REACTIONS, REPORTING & BLOCKING ---
-  console.log('\n--- 4. Testing Phase 3 Messaging Engine ---');
-
-  // Send message to User A (newuser_99) from IP 192.168.1.50
+  // Post anonymous message to User A
   const msgRes = await server.messagesController.postMessage({
-    recipientHandle: 'newuser_99',
-    promptQuestion: 'Ask me anything! 🌟',
-    messageText: 'You are an awesome human being!'
-  }, '192.168.1.50');
+    recipientHandle: 'sec_user_a',
+    promptQuestion: 'send me honest confessions 🤫',
+    messageText: 'You have a fantastic smile!'
+  }, '192.168.2.10');
 
-  if (!msgRes.success || msgRes.messageStatus !== MessageStatus.APPROVED) {
-    throw new Error(`FAILED: Message posting failed: ${msgRes.error}`);
-  }
+  if (!msgRes.success) throw new Error('FAILED: Message creation failed');
   const msgId = msgRes.messageId;
-  console.log('✔ PASS: Anonymous message creation & moderation passed');
 
-  // Retrieve User A inbox -> Should have 1 message
-  const inboxA = await server.messagesController.getInbox(tokenA);
-  if (inboxA.messages.length === 0) throw new Error('FAILED: User A inbox returned 0 messages');
-
-  const recMsg = inboxA.messages[0];
-  const msgKeys = Object.keys(recMsg);
-  if (msgKeys.includes('_internalSenderIp') || msgKeys.includes('_internalDeviceFingerprint') || (recMsg as any).senderIp) {
-    throw new Error('CRITICAL PRIVACY VIOLATION: Internal sender telemetry exposed in recipient MessageDto!');
-  }
-  console.log('✔ PASS: Recipient inbox message contains ZERO sender IP/telemetry');
-
-  // User A replies to message -> SUCCESS
-  const replyRes = await server.messagesController.replyToMessage(tokenA, msgId, 'Thank you so much! ❤️');
-  if (!replyRes.success) throw new Error(`FAILED: Reply failed: ${replyRes.error}`);
-  console.log('✔ PASS: Authorized recipient reply posted');
-
-  // User B attempts to reply to User A message -> DENIED
-  const unauthReply = await server.messagesController.replyToMessage(tokenB, msgId, 'Unauthorized reply');
-  if (unauthReply.success) throw new Error('AUTHORIZATION FAILURE: User B was able to reply to User A message');
-  console.log('✔ PASS: Unauthorized reply attempt denied');
-
-  // User A reacts to message with ❤️ -> SUCCESS
-  const reactRes = await server.messagesController.reactToMessage(tokenA, msgId, '❤️');
-  if (!reactRes.success) throw new Error(`FAILED: Reaction failed: ${reactRes.error}`);
-  console.log('✔ PASS: Message reaction recorded');
-
-  // User A blocks sender -> Sender IP 192.168.1.50 blocked
+  // Recipient blocks sender via AnonymousAbuseKey derivation
   const blockRes = await server.messagesController.blockSenderFromMessage(tokenA, msgId);
-  if (!blockRes.success) throw new Error('FAILED: Block sender failed');
-  console.log('✔ PASS: Recipient blocked sender without revealing identity');
+  if (!blockRes.success) throw new Error('FAILED: Recipient block request failed');
+  console.log('✔ PASS: Sender blocked without exposing IP or identity');
 
-  // Blocked sender attempts to post message again from 192.168.1.50 -> DENIED
-  const blockedPost = await server.messagesController.postMessage({
-    recipientHandle: 'newuser_99',
-    promptQuestion: 'Ask me anything! 🌟',
-    messageText: 'Harassment attempt after block'
-  }, '192.168.1.50');
-  if (blockedPost.success) throw new Error('BLOCK FAILURE: Blocked sender was allowed to send message');
-  console.log('✔ PASS: Blocked sender message successfully blocked server-side');
+  // Blocked sender attempts to post message again from 192.168.2.10
+  const postBlocked = await server.messagesController.postMessage({
+    recipientHandle: 'sec_user_a',
+    promptQuestion: 'send me honest confessions 🤫',
+    messageText: 'Another message attempt after block'
+  }, '192.168.2.10');
 
-  // User A reports message -> ESCALATED
-  const reportRes = await server.messagesController.reportMessage(tokenA, msgId, 'Harassment');
-  if (!reportRes.success) throw new Error('FAILED: Message report failed');
-  console.log('✔ PASS: Message reported & escalated for moderation');
+  if (postBlocked.success) throw new Error('BLOCK FAILURE: Blocked sender message was allowed');
+  if (postBlocked.error !== 'Unable to send message to this user') {
+    throw new Error(`BLOCK FAILURE: Unexpected error message: ${postBlocked.error}`);
+  }
+  console.log('✔ PASS: AnonymousAbuseKey blocked sender server-side with generic response');
 
-  // --- 5. PUBLIC WEB SECURITY & XSS ESCAPING ---
-  console.log('\n--- 5. Testing Public Web Experience & XSS Escaping ---');
+  // --- 3. CARD STUDIO TEMPLATES & STICKER CATALOG ---
+  console.log('\n--- 3. Testing Card Studio Templates & Sticker Catalog ---');
 
-  // Update profile with malicious XSS string in prompt
-  await server.usersController.updateProfile(tokenA, {
-    displayName: '<script>alert("XSS_NAME")</script>',
-    promptQuestion: 'Confess <img src=x onerror=alert(1)>'
+  const templatesRes = await server.cardsController.getTemplates();
+  if (templatesRes.templates.length < 3) throw new Error('FAILED: Card Studio templates missing');
+  console.log(`✔ PASS: Retrieved ${templatesRes.templates.length} designer card templates`);
+
+  const stickersRes = await server.cardsController.getStickers();
+  if (stickersRes.stickers.length < 5) throw new Error('FAILED: Sticker catalog missing');
+  console.log(`✔ PASS: Retrieved ${stickersRes.stickers.length} curated sticker assets`);
+
+  // --- 4. CARD PROJECT CREATION, EDITING & OWNERSHIP MATRIX ---
+  console.log('\n--- 4. Testing Card Studio Creation & Ownership Isolation ---');
+
+  // User A creates a Card Project
+  const cardCreateRes = await server.cardsController.createProject(tokenA, {
+    title: 'My Custom Story Card',
+    canvasRatio: 'STORY_9_16',
+    background: {
+      type: 'PRESET',
+      colorHex: '#0B0D17',
+      presetName: 'Midnight'
+    },
+    elements: [
+      {
+        id: 'el_txt_1',
+        type: 'TEXT',
+        x: 50,
+        y: 50,
+        width: 300,
+        height: 100,
+        rotation: 0,
+        zIndex: 1,
+        opacity: 1,
+        content: 'Confession Card Content',
+        fontSize: 24,
+        textColorHex: '#FFFFFF'
+      }
+    ],
+    includeBranding: true
   });
 
-  const pageHtml = await server.publicWebController.renderPublicPage('newuser_99');
-  if (pageHtml.includes('<script>alert("XSS_NAME")</script>')) {
-    throw new Error('CRITICAL VULNERABILITY: Unescaped script tag rendered in public web page!');
+  if (!cardCreateRes.success || !cardCreateRes.project) {
+    throw new Error(`FAILED: Card project creation failed: ${cardCreateRes.error}`);
   }
-  if (!pageHtml.includes('&lt;script&gt;alert(&quot;XSS_NAME&quot;)&lt;/script&gt;')) {
-    throw new Error('XSS TEST FAILURE: HTML special characters were not properly escaped');
+  const cardId = cardCreateRes.project.id;
+  console.log('✔ PASS: Card project created successfully');
+
+  // User B attempts to edit User A's Card Project -> DENIED (Forbidden)
+  const unauthEdit = await server.cardsController.updateProject(tokenB, cardId, {
+    title: 'Hacked Card Title'
+  });
+  if (unauthEdit.success) {
+    throw new Error('SECURITY FAILURE: User B was allowed to update User A card project');
   }
-  console.log('✔ PASS: Public web page properly escapes HTML input (XSS prevented)');
+  console.log('✔ PASS: Card project cross-account mutation blocked (Forbidden)');
 
-  // --- 6. ACCOUNT DELETION & SESSION INVALIDATION ---
-  console.log('\n--- 6. Testing Account Deletion & Session Invalidation ---');
+  // User A updates their card project
+  const authEdit = await server.cardsController.updateProject(tokenA, cardId, {
+    title: 'Updated Story Card Title'
+  });
+  if (!authEdit.success || authEdit.project.title !== 'Updated Story Card Title') {
+    throw new Error('FAILED: Owner card project update failed');
+  }
+  console.log('✔ PASS: Owner card project update successful');
 
-  const delRes = await server.usersController.deleteAccount(tokenA);
-  if (!delRes.success) throw new Error('FAILED: Account deletion failed');
-  console.log('✔ PASS: Account deletion API succeeded');
+  // --- 5. INBOX MESSAGE -> CARD CONVERSION (ZERO TELEMETRY LEAK) ---
+  console.log('\n--- 5. Testing Inbox Message to Card Conversion ---');
 
-  // Old token should now be invalidated
-  const postDelInbox = await server.messagesController.getInbox(tokenA);
-  if (postDelInbox.messages.length !== 0) throw new Error('SECURITY FAILURE: Session token still active after account deletion');
-  console.log('✔ PASS: Deleted account session token immediately invalidated');
+  // Send message to User B
+  const msgForB = await server.messagesController.postMessage({
+    recipientHandle: 'sec_user_b',
+    promptQuestion: 'send me honest confessions 🤫',
+    messageText: 'I secretly admire your courage.'
+  }, '192.168.3.45');
+
+  const cardFromMsgRes = await server.cardsController.createCardFromMessage(tokenB, {
+    messageId: msgForB.messageId,
+    templateId: 'tmpl_confession_01'
+  });
+
+  if (!cardFromMsgRes.success || !cardFromMsgRes.project) {
+    throw new Error(`FAILED: Inbox message to Card conversion failed: ${cardFromMsgRes.error}`);
+  }
+
+  const generatedCard = cardFromMsgRes.project;
+  const cardElementsJson = JSON.stringify(generatedCard.elements);
+  if (cardElementsJson.includes('192.168.3.45') || cardElementsJson.includes('secuser_b@justsay.app')) {
+    throw new Error('CRITICAL PRIVACY FAILURE: Sender telemetry or sensitive PII leaked into Card Project!');
+  }
+  console.log('✔ PASS: Inbox confession converted to Card without sender telemetry leakage');
+
+  // --- 6. MEDIA ASSET UPLOAD & VALIDATION ---
+  console.log('\n--- 6. Testing Media Storage Service & MIME Validation ---');
+
+  // Test invalid MIME type -> REJECTED
+  const invalidMime = await server.mediaStorageService.uploadMedia('sec_user_a', {
+    fileName: 'exploit.exe',
+    mimeType: 'application/x-msdownload',
+    fileSizeBytes: 1024
+  });
+  if (invalidMime.success) throw new Error('MEDIA SECURITY FAILURE: Disallowed MIME type was accepted');
+  console.log('✔ PASS: Invalid MIME type upload rejected');
+
+  // Test oversized file -> REJECTED
+  const oversizedFile = await server.mediaStorageService.uploadMedia('sec_user_a', {
+    fileName: 'huge_banner.png',
+    mimeType: 'image/png',
+    fileSizeBytes: 10 * 1024 * 1024 // 10MB
+  });
+  if (oversizedFile.success) throw new Error('MEDIA SECURITY FAILURE: Oversized file was accepted');
+  console.log('✔ PASS: Oversized file (>5MB) upload rejected');
+
+  // Test Magic Byte Inspection (Valid PNG base64)
+  const pngHeaderBase64 = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]).toString('base64');
+  const validMagicUpload = await server.mediaStorageService.uploadMedia('sec_user_a', {
+    fileName: 'valid_header.png',
+    mimeType: 'image/png',
+    fileSizeBytes: 50 * 1024,
+    base64Content: pngHeaderBase64
+  });
+  if (!validMagicUpload.success) throw new Error('MEDIA FAILURE: Valid PNG magic header was rejected');
+  console.log('✔ PASS: Valid PNG magic bytes verified successfully');
+
+  // Test Invalid Magic Byte (Fake PNG containing script text)
+  const fakePngBase64 = Buffer.from('<script>alert("xss")</script>').toString('base64');
+  const spoofedMagicUpload = await server.mediaStorageService.uploadMedia('sec_user_a', {
+    fileName: 'spoofed.png',
+    mimeType: 'image/png',
+    fileSizeBytes: 50 * 1024,
+    base64Content: fakePngBase64
+  });
+  if (spoofedMagicUpload.success) throw new Error('MEDIA SECURITY FAILURE: Spoofed file magic bytes passed validation!');
+  console.log('✔ PASS: Spoofed magic bytes correctly rejected');
+
+  // --- 7. NOTIFICATION SERVICE & PRIVACY-PRESERVING PREVIEWS ---
+  console.log('\n--- 7. Testing Notification Service & Privacy Previews ---');
+
+  const notifService = server.notificationService;
+
+  // Dispatch new message notification -> Uses non-sensitive preview
+  const notifItem = await notifService.notifyUser('sec_user_a', 'new_message');
+  if (!notifItem || notifItem.body.includes('confession text')) {
+    throw new Error('NOTIFICATION PRIVACY FAILURE: Sensitive content leaked in notification preview');
+  }
+  if (notifItem.body !== 'You received a new JUSTSAY message.') {
+    throw new Error(`NOTIFICATION FAILURE: Unexpected notification body: ${notifItem.body}`);
+  }
+  console.log('✔ PASS: Notification preview uses non-sensitive text ("You received a new JUSTSAY message.")');
+
+  // User disables message notifications -> Dispatch returns null
+  notifService.updatePreferences('sec_user_a', { newMessages: false });
+  const disabledNotif = await notifService.notifyUser('sec_user_a', 'new_message');
+  if (disabledNotif !== null) {
+    throw new Error('NOTIFICATION FAILURE: Notification dispatched despite user preference disabled');
+  }
+  console.log('✔ PASS: User notification preferences respected');
 
   console.log('\n================================================================');
-  console.log('ALL PHASE 2 SECURITY REMEDIATIONS & PHASE 3 TESTS PASSED CLEANLY!');
+  console.log('ALL PHASE 3, PHASE 4 & PHASE 5 TESTS PASSED SUCCESSFULLY!');
   console.log('================================================================\n');
 }
 

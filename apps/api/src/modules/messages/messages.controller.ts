@@ -4,6 +4,7 @@ import { ServerModerationService } from '../moderation/moderation.service';
 import { ValidationRules } from '@justsay/validation';
 import { RateLimiterService } from '../ratelimit/ratelimit.service';
 import { AuthService } from '../auth/auth.service';
+import * as crypto from 'crypto';
 
 interface StoredMessage {
   id: string;
@@ -29,23 +30,27 @@ interface StoredMessage {
   _internalDeviceFingerprint?: string;
 }
 
-interface BlockEntry {
-  recipientHandle: string;
-  blockedSenderIp: string;
-  createdAt: number;
-}
-
 export class MessagesController {
   private moderationService: ServerModerationService;
   private rateLimiter: RateLimiterService;
   private authService: AuthService;
   private messagesStore = new Map<string, StoredMessage[]>();
-  private blocksStore = new Set<string>(); // key: recipientHandle + ":" + blockedSenderIp
+  private blocksStore = new Set<string>(); // key: recipientHandle + ":" + anonymousAbuseKey
 
   constructor(moderationService: ServerModerationService, rateLimiter: RateLimiterService, authService: AuthService) {
     this.moderationService = moderationService;
     this.rateLimiter = rateLimiter;
     this.authService = authService;
+  }
+
+  // Internal Privacy Abstraction: derive non-reversible AnonymousAbuseKey from sender telemetry
+  private computeAnonymousAbuseKey(clientIp: string): string {
+    return crypto.createHash('sha256').update(`${clientIp}_salt_abuse_key_v2_justsay`).digest('hex');
+  }
+
+  public getRawMessage(handle: string, messageId: string): StoredMessage | undefined {
+    const msgs = this.messagesStore.get(handle.toLowerCase()) || [];
+    return msgs.find(m => m.id === messageId);
   }
 
   public async postMessage(req: SendMessageRequest, clientIp: string): Promise<SendMessageResponse> {
@@ -83,8 +88,9 @@ export class MessagesController {
       };
     }
 
-    // Check if client IP is blocked by recipient
-    const blockKey = `${recipientUser.handle.toLowerCase()}:${clientIp}`;
+    // Check if client is blocked by recipient using AnonymousAbuseKey
+    const abuseKey = this.computeAnonymousAbuseKey(clientIp);
+    const blockKey = `${recipientUser.handle.toLowerCase()}:${abuseKey}`;
     if (this.blocksStore.has(blockKey)) {
       return {
         success: false,
@@ -349,7 +355,8 @@ export class MessagesController {
     }
 
     if (msg._internalSenderIp) {
-      const blockKey = `${session.user.handle.toLowerCase()}:${msg._internalSenderIp}`;
+      const abuseKey = this.computeAnonymousAbuseKey(msg._internalSenderIp);
+      const blockKey = `${session.user.handle.toLowerCase()}:${abuseKey}`;
       this.blocksStore.add(blockKey);
     }
 

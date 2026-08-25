@@ -48,17 +48,34 @@ export class AuthService {
 
   private hashPassword(password: string, customSalt?: string): string {
     const saltHex = customSalt || crypto.randomBytes(16).toString('hex');
-    const derivedKey = crypto.scryptSync(password, saltHex, 64, { N: 16384, r: 8, p: 1 });
-    return `$scrypt$N=16384,r=8,p=1$${saltHex}$${derivedKey.toString('hex')}`;
+    const derivedKey = crypto.scryptSync(password, saltHex, 64, { N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024 });
+    return `$scrypt$N=131072,r=8,p=1$${saltHex}$${derivedKey.toString('hex')}`;
+  }
+
+  private parseScryptParams(paramsStr: string): { N: number; r: number; p: number } {
+    let N = 131072;
+    let r = 8;
+    let p = 1;
+    const parts = paramsStr.split(',');
+    for (const part of parts) {
+      const [k, v] = part.split('=');
+      if (k === 'N') N = parseInt(v, 10) || 131072;
+      if (k === 'r') r = parseInt(v, 10) || 8;
+      if (k === 'p') p = parseInt(v, 10) || 1;
+    }
+    return { N, r, p };
   }
 
   private verifyPassword(password: string, storedHash: string): boolean {
     if (!storedHash || !storedHash.startsWith('$scrypt$')) return false;
     const parts = storedHash.split('$');
     if (parts.length < 5) return false;
+    const paramsStr = parts[2];
     const saltHex = parts[3];
     const expectedHashHex = parts[4];
-    const derivedKey = crypto.scryptSync(password, saltHex, 64, { N: 16384, r: 8, p: 1 });
+
+    const { N, r, p } = this.parseScryptParams(paramsStr);
+    const derivedKey = crypto.scryptSync(password, saltHex, 64, { N, r, p, maxmem: 256 * 1024 * 1024 });
     const expectedHashBuffer = Buffer.from(expectedHashHex, 'hex');
     if (derivedKey.length !== expectedHashBuffer.length) return false;
     return crypto.timingSafeEqual(derivedKey, expectedHashBuffer);
@@ -122,6 +139,13 @@ export class AuthService {
 
     if (!this.verifyPassword(req.password, user.passwordHash)) {
       return { success: false, error: 'Invalid email or password' };
+    }
+
+    // Transparent password hash migration to N=131072 baseline if using older parameters
+    if (!user.passwordHash.includes('N=131072')) {
+      user.passwordHash = this.hashPassword(req.password);
+      this.usersByEmail.set(normalizedEmail, user);
+      this.usersByHandle.set(user.handle.toLowerCase(), user);
     }
 
     const session = this.createSession(user);
