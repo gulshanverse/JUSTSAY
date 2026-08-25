@@ -1,0 +1,6 @@
+{
+  "name": "@justsay/contracts",
+  "version": "1.0.0",
+  "description": "API Contracts for JUSTSAY REST Gateway",
+  "main": "src/index.ts"
+}

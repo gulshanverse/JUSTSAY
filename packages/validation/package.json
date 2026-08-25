@@ -1,0 +1,6 @@
+{
+  "name": "@justsay/validation",
+  "version": "1.0.0",
+  "description": "Shared Validation Logic for JUSTSAY Platform",
+  "main": "src/index.ts"
+}

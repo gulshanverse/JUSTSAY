@@ -1,0 +1,9 @@
+{
+  "name": "@justsay/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript data types for JUSTSAY platform",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  }
+}

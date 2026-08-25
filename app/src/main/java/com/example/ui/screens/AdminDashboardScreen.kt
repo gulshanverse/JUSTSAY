@@ -92,7 +92,7 @@ fun AdminDashboardScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Authenticate with your admin pin to view user logs, moderation queue, database telemetry & system settings.",
+                text = "Authenticate with your server bearer session token to view user logs, moderation queue, database telemetry & system settings.",
                 color = Color(0xFFA093BA),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)

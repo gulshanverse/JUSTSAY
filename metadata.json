@@ -1,6 +1,6 @@
 {
-  "name": "Whispr - GenZ Confessions",
-  "description": "GenZ anonymous confession cards, interactive Q&A links, colorful custom card builder, safety filters, and advanced admin moderation suite.",
+  "name": "JUSTSAY",
+  "description": "Production foundation for JUSTSAY - Next-gen privacy-first anonymous social platform with Clean Architecture, server moderation, and multi-app monorepo.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
