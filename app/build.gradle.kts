@@ -69,6 +69,12 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("FCM_PRIVATE_KEY")
+  ignoreList.add("FCM_CLIENT_EMAIL")
+  ignoreList.add("DATABASE_URL")
+  ignoreList.add("REDIS_URL")
+  ignoreList.add("SESSION_SECRET")
+  ignoreList.add("ADMIN_SECRET")
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
