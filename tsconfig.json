@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2021",
+    "baseUrl": ".",
+    "paths": {
+      "@justsay/shared-types": ["packages/shared-types/src/index.ts"],
+      "@justsay/contracts": ["packages/contracts/src/index.ts"],
+      "@justsay/validation": ["packages/validation/src/index.ts"]
+    },
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
+  }
+}

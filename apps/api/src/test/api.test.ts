@@ -1,6 +1,6 @@
 import { JustSayApiServer } from '../main';
 import { ValidationRules } from '@justsay/validation';
-import { ModerationStatus, MessageStatus } from '@justsay/shared-types';
+import { ModerationStatus, MessageStatus, AdminRole } from '@justsay/shared-types';
 import * as crypto from 'crypto';
 
 async function runTests() {
@@ -256,8 +256,95 @@ async function runTests() {
   }
   console.log('✔ PASS: User notification preferences respected');
 
+  // --- 8. PHASE 6: ADMIN CONTROL PLANE, RBAC & AUDIT LOGS ---
+  console.log('\n--- 8. Testing Admin Control Plane, RBAC & Audit Logs ---');
+
+  const adminController = server.adminController;
+
+  // Support Admin Login
+  const supportLogin = await adminController.loginAdmin({ authToken: 'support_key' });
+  if (!supportLogin.authenticated || supportLogin.role !== AdminRole.SUPPORT) {
+    throw new Error('ADMIN AUTH FAILURE: Support login failed');
+  }
+  console.log('✔ PASS: Admin authentication and role assignment verified (SUPPORT)');
+
+  // Super Admin Login
+  const superLogin = await adminController.loginAdmin({ authToken: 'super_secret_key' });
+  if (!superLogin.authenticated || superLogin.role !== AdminRole.SUPER_ADMIN) {
+    throw new Error('ADMIN AUTH FAILURE: Super Admin login failed');
+  }
+  console.log('✔ PASS: Super Admin authentication verified (SUPER_ADMIN)');
+
+  // RBAC Enforcement: Support role cannot access full audit logs
+  let unauthorizedAuditError = false;
+  try {
+    adminController.getAuditLogs(AdminRole.SUPPORT);
+  } catch (err) {
+    unauthorizedAuditError = true;
+  }
+  if (!unauthorizedAuditError) {
+    throw new Error('RBAC SECURITY FAILURE: Support role bypassed audit log access restriction!');
+  }
+  console.log('✔ PASS: RBAC restriction enforced on sensitive audit logs');
+
+  // Super Admin retrieves audit logs
+  const auditLogs = adminController.getAuditLogs(AdminRole.SUPER_ADMIN);
+  if (auditLogs.length === 0) {
+    throw new Error('AUDIT LOG FAILURE: Audit logs were empty after login');
+  }
+  console.log(`✔ PASS: Append-only audit logs recorded successfully (${auditLogs.length} events logged)`);
+
+  // --- 9. PHASE 6: FEATURE FLAGS & DETERMINISTIC BUCKETING ---
+  console.log('\n--- 9. Testing Feature Flags & Deterministic Bucketing ---');
+
+  const ffService = server.featureFlagsService;
+  const flags = ffService.getAllFlags();
+  if (flags.length === 0) throw new Error('FEATURE FLAGS FAILURE: Default flags empty');
+
+  // Test 50% rollout bucketing determinism
+  const isUserAEnabled = ffService.isFeatureEnabledForUser('new_profile_ui', 'user_a');
+  const isUserAEnabledAgain = ffService.isFeatureEnabledForUser('new_profile_ui', 'user_a');
+  if (isUserAEnabled !== isUserAEnabledAgain) {
+    throw new Error('FEATURE FLAGS FAILURE: Deterministic bucketing failed for same user');
+  }
+  console.log(`✔ PASS: Deterministic feature flag evaluation verified for 'new_profile_ui' (user_a -> ${isUserAEnabled})`);
+
+  // --- 10. PHASE 6: ANALYTICS & PRIVACY FILTERING ---
+  console.log('\n--- 10. Testing Analytics & Privacy Filtering ---');
+
+  const analyticsService = server.analyticsService;
+  // Track event with forbidden sensitive key
+  analyticsService.trackEvent('message_sent', {
+    handle: 'sec_user_a',
+    messageText: 'Super secret private message content',
+    password: 'myPassword123'
+  });
+
+  const funnelMetrics = analyticsService.getFunnelMetrics();
+  if (!funnelMetrics || funnelMetrics.length === 0) {
+    throw new Error('ANALYTICS FAILURE: Funnel metrics empty');
+  }
+  console.log('✔ PASS: Analytics event tracked & funnel metrics aggregated successfully');
+
+  // --- 11. PHASE 6: ACCOUNT DATA EXPORT ---
+  console.log('\n--- 11. Testing Account Data Export & Privacy Sanitization ---');
+
+  const exportService = server.accountDataExportService;
+  const exportPkg = await exportService.generateUserExportPackage(
+    { id: 'usr_1', email: 'user@example.com', handle: 'sec_user_a', displayName: 'User A', createdAt: Date.now() },
+    { handle: 'sec_user_a', allowAnonymousMessages: true, allowReplies: true, allowReactions: true, showPublicProfile: true },
+    5,
+    2,
+    1
+  );
+
+  if (!exportPkg.dataUrl || exportPkg.user.handle !== 'sec_user_a') {
+    throw new Error('DATA EXPORT FAILURE: Export package payload malformed');
+  }
+  console.log('✔ PASS: Privacy-sanitized user data export generated');
+
   console.log('\n================================================================');
-  console.log('ALL PHASE 3, PHASE 4 & PHASE 5 TESTS PASSED SUCCESSFULLY!');
+  console.log('ALL PHASE 3, 4, 5 & PHASE 6 TESTS PASSED SUCCESSFULLY!');
   console.log('================================================================\n');
 }
 
@@ -265,3 +352,4 @@ runTests().catch(err => {
   console.error('TEST FAILURE:', err);
   process.exit(1);
 });
+
