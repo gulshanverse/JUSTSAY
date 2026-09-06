@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: justsay-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: justsay_user
+      POSTGRES_PASSWORD: justsay_dev_pass
+      POSTGRES_DB: justsay_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U justsay_user -d justsay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: justsay-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  object-storage:
+    image: adobe/s3mock:2.11.0
+    container_name: justsay-object-storage
+    restart: always
+    ports:
+      - "9090:9090"
+      - "9191:9191"
+    environment:
+      initialBuckets: justsay-media-assets-prod
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: justsay-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgres://justsay_user:justsay_dev_pass@postgres:5432/justsay_db
+      REDIS_URL: redis://redis:6379
+      OBJECT_STORAGE_BUCKET: justsay-media-assets-prod
+      SESSION_SECRET: dev_session_secret_32_characters_long_for_security
+      ADMIN_JWT_SECRET: dev_admin_jwt_secret_32_characters_long_for_security
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: justsay-worker
+    restart: always
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://justsay_user:justsay_dev_pass@postgres:5432/justsay_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

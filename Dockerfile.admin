@@ -1,0 +1,29 @@
+# Production Dockerfile for JUSTSAY Admin Control Plane
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY packages ./packages
+COPY apps/admin ./apps/admin
+
+RUN npm ci
+
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3001
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nodejs
+
+COPY --from=builder /app /app
+
+USER nodejs
+
+EXPOSE 3001
+
+CMD ["npx", "tsx", "apps/admin/src/index.ts"]

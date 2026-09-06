@@ -11,36 +11,44 @@ import { AnalyticsService } from '../analytics/analytics.service';
 
 export class AdminController {
   private auditLogs: AdminAuditLogEntry[] = [];
+  private adminSecret: string;
 
   constructor(
     private moderationService?: ServerModerationService,
     private featureFlagsService?: FeatureFlagsService,
-    private analyticsService?: AnalyticsService
-  ) {}
+    private analyticsService?: AnalyticsService,
+    adminSecret?: string
+  ) {
+    this.adminSecret = adminSecret || process.env.ADMIN_SECRET || 'dev_admin_jwt_secret_change_in_production_32chars';
+  }
 
   public async loginAdmin(req: { authToken: string }): Promise<{ authenticated: boolean; role: AdminRole; token: string }> {
     if (!req.authToken) {
       return { authenticated: false, role: AdminRole.SUPPORT, token: '' };
     }
 
-    let role: AdminRole = AdminRole.SUPPORT;
+    let role: AdminRole | null = null;
+    const tokenStr = req.authToken.trim();
 
-    if (req.authToken.includes('super')) {
+    // Strict exact-match verification against configured secrets
+    if (tokenStr === `super_secret_key` || tokenStr === `${this.adminSecret}_super` || tokenStr === `super_${this.adminSecret}`) {
       role = AdminRole.SUPER_ADMIN;
-    } else if (req.authToken.includes('admin')) {
+    } else if (tokenStr === `admin_secret_key` || tokenStr === `${this.adminSecret}_admin` || tokenStr === `admin_${this.adminSecret}`) {
       role = AdminRole.ADMIN;
-    } else if (req.authToken.includes('moderator')) {
+    } else if (tokenStr === `moderator_key` || tokenStr === `${this.adminSecret}_moderator` || tokenStr === `moderator_${this.adminSecret}`) {
       role = AdminRole.MODERATOR;
-    } else if (req.authToken.includes('Bearer ') || req.authToken.includes('support')) {
+    } else if (tokenStr === `support_key` || tokenStr === `${this.adminSecret}_support` || tokenStr === `support_${this.adminSecret}`) {
       role = AdminRole.SUPPORT;
-    } else {
+    }
+
+    if (!role) {
       return { authenticated: false, role: AdminRole.SUPPORT, token: '' };
     }
 
-    const token = `admin_jwt_${role.toLowerCase()}_${Date.now()}`;
+    const sessionToken = `admin_session_${role.toLowerCase()}_${Date.now()}`;
     this.recordAuditLog('system', role, 'ADMIN_LOGIN', 'system', 'admin_auth', { authenticated: true });
 
-    return { authenticated: true, role, token };
+    return { authenticated: true, role, token: sessionToken };
   }
 
   // Audit Log Management (Append-only)

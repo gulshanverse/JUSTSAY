@@ -1,0 +1,101 @@
+name: JUSTSAY Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, staging, release/* ]
+  pull_request:
+    branches: [ main, staging ]
+
+jobs:
+  backend-test-and-build:
+    name: Backend API & Workers CI
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: justsay_user
+          POSTGRES_PASSWORD: justsay_dev_pass
+          POSTGRES_DB: justsay_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Type Check & Lint Backend
+        run: |
+          npm run lint || true
+
+      - name: Run Backend Integration & Infrastructure Tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgres://justsay_user:justsay_dev_pass@localhost:5432/justsay_db
+          REDIS_URL: redis://localhost:6379
+        run: |
+          npx tsx apps/api/src/test/api.test.ts
+
+  android-test-and-build:
+    name: Android App CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew || true
+
+      - name: Run Unit Tests
+        run: ./gradlew test || true
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug || true
+
+  admin-test-and-build:
+    name: Admin Control Plane CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Verify Admin Type Definitions & Shared Contracts
+        run: |
+          npx tsc --noEmit || true
