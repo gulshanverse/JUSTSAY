@@ -12,15 +12,15 @@ object AppLogger {
     private const val TAG = "JUSTSAY"
 
     fun d(message: String) {
-        Log.d(TAG, message)
+        runCatching { Log.d(TAG, message) }.onFailure { println("[$TAG] DEBUG: $message") }
     }
 
     fun e(message: String, throwable: Throwable? = null) {
-        Log.e(TAG, message, throwable)
+        runCatching { Log.e(TAG, message, throwable) }.onFailure { println("[$TAG] ERROR: $message ${throwable?.message ?: ""}") }
     }
 
     fun i(message: String) {
-        Log.i(TAG, message)
+        runCatching { Log.i(TAG, message) }.onFailure { println("[$TAG] INFO: $message") }
     }
 }
 

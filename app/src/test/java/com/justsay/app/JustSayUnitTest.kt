@@ -95,6 +95,37 @@ class JustSayUnitTest {
         assertTrue(supportSuccess)
         assertEquals(AdminRole.SUPPORT, authRepo.getAdminSession().first().role)
     }
+
+    @Test
+    fun testPushTokenRepository_TokenRegistrationAndRevocation() = runBlocking {
+        val tokenManager = TokenManager()
+        val pushRepo = com.justsay.app.service.PushTokenRepositoryImpl(tokenManager)
+
+        // 1. Blank token rejected
+        val blankRes = pushRepo.registerPushToken("")
+        assertFalse(blankRes)
+
+        // 2. Token cached when logged out
+        val token1 = "fcm_test_token_12345"
+        val regRes1 = pushRepo.registerPushToken(token1)
+        assertTrue(regRes1)
+        assertEquals(token1, pushRepo.getCachedPushToken())
+
+        // 3. User logs in
+        tokenManager.saveUserSession("access_token_abc", "refresh_token_xyz", "testuser")
+        assertTrue(tokenManager.isLoggedIn())
+
+        // 4. Token registered for logged-in user
+        val token2 = "fcm_test_token_67890"
+        val regRes2 = pushRepo.registerPushToken(token2)
+        assertTrue(regRes2)
+        assertEquals(token2, pushRepo.getCachedPushToken())
+
+        // 5. Token revocation
+        val revokeRes = pushRepo.revokePushToken(token2)
+        assertTrue(revokeRes)
+        assertEquals(null, pushRepo.getCachedPushToken())
+    }
 }
 
 class FakeJustSayDao : com.justsay.app.data.local.JustSayDao {

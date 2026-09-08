@@ -622,6 +622,102 @@ async function runTests() {
     throw new Error(`BENCHMARK FAILURE: Encountered ${errorCount} errors during performance run`);
   }
 
+  // --- 24. FCM TOKEN LIFECYCLE, AUTHENTICATED OWNERSHIP & PRIVACY TEST SUITE ---
+  console.log('\n--- 24. Testing FCM Token Lifecycle, Authenticated Ownership & Privacy Enforcements ---');
+  const notifSvc = server.notificationService;
+  const usersCtrl = server.usersController;
+
+  const authUserA = await server.authService.register({
+    email: 'fcm_user_a@justsay.app',
+    password: 'Password123!',
+    handle: 'fcm_user_a',
+    displayName: 'FCM User A'
+  });
+  const authUserB = await server.authService.register({
+    email: 'fcm_user_b@justsay.app',
+    password: 'Password123!',
+    handle: 'fcm_user_b',
+    displayName: 'FCM User B'
+  });
+
+  const fcmTokenA = `Bearer ${authUserA.session!.accessToken}`;
+  const fcmTokenB = `Bearer ${authUserB.session!.accessToken}`;
+
+  const userAKey = authUserA.session!.user.id;
+  const userBKey = authUserB.session!.user.id;
+
+  // 24a. Unauthenticated registration attempt must be rejected
+  const unauthReg = await usersCtrl.registerPushToken('', 'fcm_token_unauth_123');
+  if (unauthReg.success) {
+    throw new Error('FCM SECURITY FAILURE: Unauthenticated token registration was permitted!');
+  }
+
+  // 24b. Invalid/empty token registration attempt
+  const emptyTokenReg = await usersCtrl.registerPushToken(fcmTokenA, '');
+  if (emptyTokenReg.success) {
+    throw new Error('FCM SECURITY FAILURE: Empty FCM device token registration was permitted!');
+  }
+
+  // 24c. Authenticated registration
+  const regA1 = await usersCtrl.registerPushToken(fcmTokenA, 'fcm_token_device_A_1', 'android');
+  if (!regA1.success) {
+    throw new Error('FCM REGISTRATION FAILURE: Failed to register device token for user A');
+  }
+
+  // Verify token associated with User A
+  const tokensUserA = notifSvc.getUserTokens(userAKey);
+  if (!tokensUserA.some(t => t.deviceToken === 'fcm_token_device_A_1')) {
+    throw new Error('FCM OWNERSHIP FAILURE: Token not associated with authenticated User A');
+  }
+
+  // 24d. Token rotation / re-registration (device token moved to User B)
+  const regB1 = await usersCtrl.registerPushToken(fcmTokenB, 'fcm_token_device_A_1', 'android');
+  if (!regB1.success) {
+    throw new Error(`FCM ROTATION FAILURE: Failed to rotate token to User B: ${regB1.error}`);
+  }
+  const tokensUserAAfterRotation = notifSvc.getUserTokens(userAKey);
+  const tokensUserBAfterRotation = notifSvc.getUserTokens(userBKey);
+  if (tokensUserAAfterRotation.some(t => t.deviceToken === 'fcm_token_device_A_1')) {
+    throw new Error('FCM ROTATION FAILURE: Token remained registered under old user after rotation!');
+  }
+  if (!tokensUserBAfterRotation.some(t => t.deviceToken === 'fcm_token_device_A_1')) {
+    throw new Error('FCM ROTATION FAILURE: Token was not updated to new authenticated user B');
+  }
+
+  // 24e. Re-register distinct token for User A
+  await usersCtrl.registerPushToken(fcmTokenA, 'fcm_token_device_A_2', 'android');
+
+  // 24f. Token removal / revocation
+  const revokeRes = await usersCtrl.revokePushToken(fcmTokenA, 'fcm_token_device_A_2');
+  if (!revokeRes.success) {
+    throw new Error('FCM REVOCATION FAILURE: Failed to revoke device token');
+  }
+  if (notifSvc.getUserTokens(userAKey).some(t => t.deviceToken === 'fcm_token_device_A_2')) {
+    throw new Error('FCM REVOCATION FAILURE: Revoked token still present in user token store');
+  }
+
+  // 24g. Notification Preference Enforcement
+  notifSvc.updatePreferences('fcm_user_a', { newMessages: false });
+  const suppressedNotif = await notifSvc.notifyUser('fcm_user_a', 'new_message');
+  if (suppressedNotif !== null) {
+    throw new Error('FCM PREFERENCE FAILURE: Notification dispatched despite user preference disabling new_message!');
+  }
+  // Restore preference
+  notifSvc.updatePreferences('fcm_user_a', { newMessages: true });
+
+  // 24h. Generic Notification Payload Privacy Verification
+  const activeNotif = await notifSvc.notifyUser('fcm_user_a', 'new_message', 'Private Raw Confession Text', 'Raw secret details');
+  if (!activeNotif) {
+    throw new Error('FCM NOTIFICATION FAILURE: Failed to dispatch notification');
+  }
+  if (activeNotif.body.includes('Raw secret details') || activeNotif.body.includes('Private Raw Confession')) {
+    throw new Error('PRIVACY LEAK FAILURE: Sensitive message details leaked in push notification payload!');
+  }
+  if (activeNotif.body !== 'You received a new JUSTSAY message.') {
+    throw new Error(`PRIVACY FORMAT FAILURE: Unexpected notification body: ${activeNotif.body}`);
+  }
+  console.log('✔ PASS: FCM token lifecycle, token rotation, authenticated ownership, and notification privacy verified');
+
   await server.shutdown();
 
   console.log('\n================================================================');

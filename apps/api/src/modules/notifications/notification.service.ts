@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import { FcmProvider } from './fcm-production.provider';
 
 export type NotificationEventType = 'new_message' | 'message_reply' | 'message_reaction' | 'moderation_update';
 
@@ -53,10 +54,57 @@ export class FcmPushProvider implements PushNotificationProvider {
 export class NotificationService {
   private notificationsStore = new Map<string, NotificationItem[]>(); // handle -> list
   private preferencesStore = new Map<string, NotificationPreferences>(); // handle -> prefs
+  private userTokens = new Map<string, { userId: string; deviceToken: string; platform: 'android' | 'ios' | 'web'; updatedAt: number }>(); // deviceToken -> record
   private pushProvider: PushNotificationProvider;
+  private fcmProvider?: FcmProvider;
 
-  constructor(pushProvider?: PushNotificationProvider) {
+  constructor(pushProvider?: PushNotificationProvider, fcmProvider?: FcmProvider) {
     this.pushProvider = pushProvider || new DevelopmentPushProvider();
+    this.fcmProvider = fcmProvider;
+  }
+
+  public registerPushToken(userId: string, deviceToken: string, platform: 'android' | 'ios' | 'web' = 'android') {
+    if (!deviceToken || deviceToken.trim().length === 0) {
+      throw new Error('INVALID_TOKEN');
+    }
+    const token = deviceToken.trim();
+    this.userTokens.set(token, {
+      userId,
+      deviceToken: token,
+      platform,
+      updatedAt: Date.now()
+    });
+    if (this.fcmProvider) {
+      this.fcmProvider.registerDeviceToken(userId, token, platform);
+    }
+  }
+
+  public revokePushToken(deviceToken: string) {
+    if (!deviceToken) return;
+    const token = deviceToken.trim();
+    this.userTokens.delete(token);
+    if (this.fcmProvider) {
+      this.fcmProvider.revokeDeviceToken(token);
+    }
+  }
+
+  public revokeAllUserTokens(userId: string) {
+    for (const [token, record] of Array.from(this.userTokens.entries())) {
+      if (record.userId === userId) {
+        this.userTokens.delete(token);
+        if (this.fcmProvider) {
+          this.fcmProvider.revokeDeviceToken(token);
+        }
+      }
+    }
+  }
+
+  public getUserTokens(userIdOrHandle: string) {
+    if (!userIdOrHandle) return [];
+    const target = userIdOrHandle.toLowerCase();
+    return Array.from(this.userTokens.values()).filter(
+      t => t.userId.toLowerCase() === target || t.userId === userIdOrHandle
+    );
   }
 
   public getPreferences(handle: string): NotificationPreferences {

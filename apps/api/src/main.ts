@@ -56,15 +56,15 @@ export class JustSayApiServer {
   public jobQueueService = new JobQueueService();
   public accountDataExportService = new AccountDataExportService();
 
+  public notificationService = new NotificationService(undefined, this.fcmProvider);
   public authController = new AuthController(this.authService, this.rateLimiter);
   public handlesController = new HandlesController(this.authService, this.rateLimiter);
-  public usersController = new UsersController(this.authService);
+  public usersController = new UsersController(this.authService, this.notificationService);
   public messagesController = new MessagesController(this.moderationService, this.rateLimiter, this.authService);
   public adminController = new AdminController(this.moderationService, this.featureFlagsService, this.analyticsService, this.config.secrets.adminSecret);
   public publicWebController = new PublicWebController(this.usersController, this.messagesController);
   public cardsController = new CardsController(this.authService, this.messagesController);
   public mediaStorageService = new MediaStorageService();
-  public notificationService = new NotificationService();
 
   public async initialize(): Promise<void> {
     this.logger.info('Initializing JUSTSAY Production Infrastructure Services...');

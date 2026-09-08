@@ -1,13 +1,16 @@
 import { UserProfileDto } from '@justsay/shared-types';
 import { UpdateProfileRequest } from '@justsay/contracts';
 import { AuthService } from '../auth/auth.service';
+import { NotificationService } from '../notifications/notification.service';
 import { ValidationRules } from '@justsay/validation';
 
 export class UsersController {
   private authService: AuthService;
+  private notificationService?: NotificationService;
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, notificationService?: NotificationService) {
     this.authService = authService;
+    this.notificationService = notificationService;
   }
 
   public async getPublicProfile(handle: string): Promise<UserProfileDto | null> {
@@ -79,11 +82,60 @@ export class UsersController {
       return { success: false, error: 'Session invalid or expired' };
     }
 
+    if (this.notificationService) {
+      this.notificationService.revokeAllUserTokens(session.user.id || session.user.handle);
+    }
+
     const deleted = await this.authService.deleteAccount(session.user.handle);
     if (!deleted) {
       return { success: false, error: 'Account not found or already deleted' };
     }
 
+    return { success: true };
+  }
+
+  public async registerPushToken(
+    authHeader: string,
+    deviceToken: string,
+    platform: 'android' | 'ios' | 'web' = 'android'
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const token = authHeader.replace('Bearer ', '').trim();
+    const session = await this.authService.getSession(token);
+
+    if (!session) {
+      return { success: false, error: 'Session invalid or expired' };
+    }
+
+    if (!deviceToken || deviceToken.trim().length === 0) {
+      return { success: false, error: 'Device token is required' };
+    }
+
+    if (this.notificationService) {
+      this.notificationService.registerPushToken(session.user.id || session.user.handle, deviceToken.trim(), platform);
+    }
+    return { success: true };
+  }
+
+  public async revokePushToken(
+    authHeader: string,
+    deviceToken: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const token = authHeader.replace('Bearer ', '').trim();
+    const session = await this.authService.getSession(token);
+
+    if (!session) {
+      return { success: false, error: 'Session invalid or expired' };
+    }
+
+    if (this.notificationService) {
+      this.notificationService.revokePushToken(deviceToken.trim());
+    }
     return { success: true };
   }
 }
