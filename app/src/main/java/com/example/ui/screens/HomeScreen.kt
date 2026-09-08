@@ -103,7 +103,7 @@ fun HomeScreen(
         ) {
             Column {
                 Text(
-                    text = "WHISPR 🤫",
+                    text = "JUSTSAY 🤫",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         color = Color(0xFFFF2A85),
                         fontWeight = FontWeight.Black,
@@ -209,7 +209,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Link Display Box
-                val linkUrl = "whispr.link/@${uiState.userHandle}"
+                val linkUrl = "justsay.app/@${uiState.userHandle}"
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

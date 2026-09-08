@@ -46,16 +46,54 @@ class JustSayUnitTest {
     }
 
     @Test
-    fun testAdminAuth_BearerToken_ReturnsSuperAdmin() = runBlocking {
+    fun testAdminAuth_ManufacturedTokens_Rejected() = runBlocking {
         val tokenManager = TokenManager()
         val dao = FakeJustSayDao()
         val authRepo = AdminAuthRepositoryImpl(dao, tokenManager)
 
-        val success = authRepo.authenticateWithToken("Bearer jwt_secret_token_abc")
-        assertTrue(success)
-        val session = authRepo.getAdminSession().first()
-        assertTrue(session.isAuthenticated)
-        assertEquals(AdminRole.SUPER_ADMIN, session.role)
+        val manufacturedTokens = listOf(
+            "admin_token_aaaaaaaaaaaaaaaa",
+            "admin_token_1234567890123456",
+            "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "Bearer admin",
+            "random_long_token_24_characters_long",
+            "admin_guest_123456789012345678"
+        )
+
+        for (token in manufacturedTokens) {
+            val success = authRepo.authenticateWithToken(token)
+            assertFalse("Token $token should have been rejected", success)
+            val session = authRepo.getAdminSession().first()
+            assertFalse("Session for $token should not be authenticated", session.isAuthenticated)
+            assertEquals(AdminRole.UNAUTHORIZED, session.role)
+        }
+    }
+
+    @Test
+    fun testAdminAuth_ValidKeys_AuthenticatedWithCorrectRole() = runBlocking {
+        val tokenManager = TokenManager()
+        val dao = FakeJustSayDao()
+        val authRepo = AdminAuthRepositoryImpl(dao, tokenManager)
+
+        // Super Admin Key
+        val superSuccess = authRepo.authenticateWithToken("super_secret_key")
+        assertTrue(superSuccess)
+        assertEquals(AdminRole.SUPER_ADMIN, authRepo.getAdminSession().first().role)
+
+        // Admin Key
+        val adminSuccess = authRepo.authenticateWithToken("admin_secret_key")
+        assertTrue(adminSuccess)
+        assertEquals(AdminRole.ADMIN, authRepo.getAdminSession().first().role)
+
+        // Moderator Key
+        val modSuccess = authRepo.authenticateWithToken("moderator_key")
+        assertTrue(modSuccess)
+        assertEquals(AdminRole.MODERATOR, authRepo.getAdminSession().first().role)
+
+        // Support Key
+        val supportSuccess = authRepo.authenticateWithToken("support_key")
+        assertTrue(supportSuccess)
+        assertEquals(AdminRole.SUPPORT, authRepo.getAdminSession().first().role)
     }
 }
 

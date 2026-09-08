@@ -10,7 +10,9 @@ enum class ModerationState {
 
 enum class AdminRole {
     SUPER_ADMIN,
+    ADMIN,
     MODERATOR,
+    SUPPORT,
     UNAUTHORIZED
 }
 

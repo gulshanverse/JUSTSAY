@@ -128,7 +128,7 @@ fun StoryExportDialog(
                             shape = RoundedCornerShape(50)
                         ) {
                             Text(
-                                text = "whispr.link/@${confession.recipientHandle}",
+                                text = "justsay.app/@${confession.recipientHandle}",
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)

@@ -109,7 +109,7 @@ fun AdminDashboardScreen(
             ) {
                 Icon(imageVector = Icons.Default.LockOpen, contentDescription = null, tint = Color.Black)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Enter Master PIN", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("Enter Admin Session Token", color = Color.Black, fontWeight = FontWeight.Bold)
             }
         }
         return

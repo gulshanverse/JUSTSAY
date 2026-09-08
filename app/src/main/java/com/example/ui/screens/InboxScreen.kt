@@ -163,7 +163,7 @@ fun InboxScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Share your link whispr.link/@${uiState.userHandle} on your social stories to get new confessions!",
+                        text = "Share your link justsay.app/@${uiState.userHandle} on your social stories to get new confessions!",
                         color = Color(0xFFA093BA),
                         style = MaterialTheme.typography.bodySmall
                     )

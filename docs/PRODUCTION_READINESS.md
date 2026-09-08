@@ -15,14 +15,16 @@ A complete production template is maintained in `/.env.example` and wired to `/d
 
 ## Infrastructure Truth Matrix
 
-| Service Component | Implementation | Configured | Integrated | Verified | Production Deployed |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **PostgreSQL 15** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
-| **Redis Cache 7** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
-| **Object Storage** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
-| **Worker Queue** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
-| **FCM Push** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
-| **Database Backups** | IMPLEMENTED | YES | YES | VERIFIED | RELEASE READY |
+| Service Component | Implementation | Configured | Provisioned | Integrated | Verified | Environment State |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Android App** | IMPLEMENTED | YES | YES | YES | VERIFIED | `LOCAL` |
+| **Backend API** | IMPLEMENTED | YES | YES | YES | VERIFIED | `LOCAL` |
+| **PostgreSQL 15** | IMPLEMENTED | YES | **NO** | **NO** | **NO** | `NOT PROVISIONED` |
+| **Redis Cache 7** | IMPLEMENTED | YES | **NO** | **NO** | **NO** | `NOT PROVISIONED` |
+| **Object Storage** | IMPLEMENTED | YES | **NO** | **NO** | **NO** | `NOT PROVISIONED` |
+| **Worker Queue** | IMPLEMENTED | YES | YES | YES | VERIFIED | `LOCAL` |
+| **FCM Push** | IMPLEMENTED | YES | **NO** | **NO** | **NO** | `NOT PROVISIONED` |
+| **Database Backups** | IMPLEMENTED | YES | **NO** | **NO** | **NO** | `NOT PROVISIONED` |
 
 ## Deployment Artifacts & Management Tools
 - **Production Compose Orchestrator**: `docker-compose.prod.yml`
