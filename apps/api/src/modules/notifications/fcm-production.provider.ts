@@ -15,7 +15,10 @@ export class FcmProvider implements PushNotificationProvider {
   private registeredTokens = new Map<string, DeviceTokenRecord>(); // deviceToken -> record
 
   constructor(config: AppConfig['fcm'], logger?: LoggerService) {
-    this.config = config;
+    this.config = {
+      ...config,
+      privateKey: config.privateKey ? config.privateKey.replace(/\\n/g, '\n') : undefined
+    };
     this.logger = logger || new LoggerService('fcm-provider');
   }
 

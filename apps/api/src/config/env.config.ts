@@ -45,6 +45,12 @@ export interface AppConfig {
 }
 
 export function validateConfig(config: AppConfig): void {
+  if (config.fcm.enabled) {
+    if (!config.fcm.projectId || !config.fcm.clientEmail || !config.fcm.privateKey) {
+      throw new Error('FCM_CONFIG_ERROR: When FCM_ENABLED is true, FCM_PROJECT_ID, FCM_CLIENT_EMAIL, and FCM_PRIVATE_KEY environment variables must be provided.');
+    }
+  }
+
   if (config.env === 'production') {
     const devSecretDefault = 'dev_session_secret_change_in_production_32chars';
     const devAdminDefault = 'dev_admin_jwt_secret_change_in_production_32chars';
