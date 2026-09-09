@@ -22,16 +22,22 @@ export interface NotificationPreferences {
   moderationNotices: boolean;
 }
 
+export interface PushNotificationResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
 export interface PushNotificationProvider {
-  sendPushNotification(handle: string, title: string, body: string, data?: Record<string, string>): Promise<boolean>;
+  sendPushNotification(handle: string, title: string, body: string, data?: Record<string, string>): Promise<PushNotificationResult>;
 }
 
 export class DevelopmentPushProvider implements PushNotificationProvider {
   public sentPushes: Array<{ handle: string; title: string; body: string }> = [];
 
-  public async sendPushNotification(handle: string, title: string, body: string): Promise<boolean> {
+  public async sendPushNotification(handle: string, title: string, body: string): Promise<PushNotificationResult> {
     this.sentPushes.push({ handle, title, body });
-    return true;
+    return { success: true, messageId: `dev_push_${Date.now()}` };
   }
 }
 
@@ -42,12 +48,12 @@ export class FcmPushProvider implements PushNotificationProvider {
     this.isConfigured = isConfigured;
   }
 
-  public async sendPushNotification(handle: string, title: string, body: string): Promise<boolean> {
+  public async sendPushNotification(handle: string, title: string, body: string): Promise<PushNotificationResult> {
     if (!this.isConfigured) {
       // FCM credentials not active in development environment -> fallback cleanly
-      return false;
+      return { success: false, error: 'FCM_NOT_CONFIGURED' };
     }
-    return true;
+    return { success: true, messageId: `fcm_${Date.now()}` };
   }
 }
 

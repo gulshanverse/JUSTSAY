@@ -21,6 +21,8 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    val defaultStagingApiUrl = System.getenv("API_BASE_URL") ?: "https://justsay-xk66.onrender.com"
+    buildConfigField("String", "API_BASE_URL", "\"$defaultStagingApiUrl\"")
   }
 
   signingConfigs {
@@ -45,8 +47,14 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      val prodApiUrl = System.getenv("API_BASE_URL") ?: "https://justsay.app"
+      buildConfigField("String", "API_BASE_URL", "\"$prodApiUrl\"")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      signingConfig = signingConfigs.getByName("debugConfig")
+      val debugApiUrl = System.getenv("API_BASE_URL") ?: "https://justsay-xk66.onrender.com"
+      buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11

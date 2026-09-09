@@ -26,6 +26,7 @@ import { ProductionObjectStorageAdapter } from './modules/media/media-storage-pr
 import { ProductionJobQueueWorker } from './modules/workers/background-worker.service';
 import { FcmProvider } from './modules/notifications/fcm-production.provider';
 import { ProductionHealthController } from './modules/health/health-production.controller';
+import { routeHttpRequest } from './router/http.router';
 
 console.log('Starting JUSTSAY Backend API Gateway (Modular Monolith) v1.0.0...');
 console.log('API routes initialized under /api/v1/');
@@ -122,35 +123,7 @@ if (require.main === module) {
 
   apiServer.initialize().then(() => {
     const server = http.createServer(async (req, res) => {
-      const url = req.url || '/';
-      res.setHeader('Content-Type', 'application/json');
-
-      try {
-        if (url === '/health' || url === '/api/v1/health' || url === '/api/v1/health/liveness') {
-          res.statusCode = 200;
-          res.end(JSON.stringify(apiServer.prodHealthController.getLiveness()));
-          return;
-        }
-
-        if (url === '/api/v1/health/readiness') {
-          const readiness = apiServer.prodHealthController.getReadiness();
-          res.statusCode = readiness.status === 'NOT_READY' ? 503 : 200;
-          res.end(JSON.stringify(readiness));
-          return;
-        }
-
-        if (url === '/' || url === '/api/v1') {
-          res.statusCode = 200;
-          res.end(JSON.stringify(apiServer.getStatus()));
-          return;
-        }
-
-        res.statusCode = 404;
-        res.end(JSON.stringify({ error: 'Not Found', path: url }));
-      } catch (err: any) {
-        res.statusCode = 500;
-        res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
-      }
+      await routeHttpRequest(apiServer, req, res);
     });
 
     server.listen(port, host, () => {

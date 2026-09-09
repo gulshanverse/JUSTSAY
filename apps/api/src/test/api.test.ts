@@ -333,8 +333,21 @@ async function runTests() {
 
   const exportService = server.accountDataExportService;
   const exportPkg = await exportService.generateUserExportPackage(
-    { id: 'usr_1', email: 'user@example.com', handle: 'sec_user_a', displayName: 'User A', createdAt: Date.now() },
-    { handle: 'sec_user_a', allowAnonymousMessages: true, allowReplies: true, allowReactions: true, showPublicProfile: true },
+    {
+      id: 'usr_1',
+      email: 'user@example.com',
+      handle: 'sec_user_a',
+      displayName: 'User A',
+      createdAt: Date.now(),
+      bio: '',
+      activePrompt: 'Send confessions',
+      anonymousMessagesEnabled: true,
+      allowImageMessages: true,
+      allowReplies: true,
+      allowReactions: true,
+      isPublicProfile: true
+    },
+    { activeTheme: 'midnight', pushNotificationsEnabled: true, emailNotificationsEnabled: true, safetyStrictness: 'MEDIUM' },
     5,
     2,
     1

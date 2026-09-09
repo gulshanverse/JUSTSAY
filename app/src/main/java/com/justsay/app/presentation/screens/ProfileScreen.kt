@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.justsay.app.core.AnalyticsLogger
+import com.justsay.app.core.ApiConfig
 import com.justsay.app.domain.model.UserProfile
 import com.justsay.app.domain.repository.AuthRepository
 import com.justsay.app.domain.repository.ProfileRepository
@@ -51,8 +52,8 @@ fun ProfileScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
 
-    // Configurable public base URL (Default: https://justsay.app)
-    val baseUrl = "https://justsay.app"
+    // Configurable public base URL (Default: ApiConfig.baseUrl)
+    val baseUrl = ApiConfig.baseUrl
     val anonymousLink = "$baseUrl/@${profileState.handle}"
 
     // Edit profile state fields
