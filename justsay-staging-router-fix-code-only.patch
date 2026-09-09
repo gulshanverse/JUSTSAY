@@ -1,0 +1,69 @@
+diff --git a/app/google-services.json b/app/google-services.json
+new file mode 100644
+index 0000000..10cf5b0
+--- /dev/null
++++ b/app/google-services.json
+@@ -0,0 +1,48 @@
++{
++  "project_info": {
++    "project_number": "109876543210",
++    "project_id": "justsay-app-prod",
++    "storage_bucket": "justsay-app-prod.appspot.com"
++  },
++  "client": [
++    {
++      "client_info": {
++        "mobilesdk_app_id": "1:109876543210:android:a1b2c3d4e5f67890",
++        "android_client_info": {
++          "package_name": "com.justsay.app"
++        }
++      },
++      "oauth_client": [],
++      "api_key": [
++        {
++          "current_key": "AIzaSyDummyClientKeyForJustSayApp1234"
++        }
++      ],
++      "services": {
++        "appinvite_service": {
++          "other_platform_oauth_client": []
++        }
++      }
++    },
++    {
++      "client_info": {
++        "mobilesdk_app_id": "1:109876543210:android:a1b2c3d4e5f67891",
++        "android_client_info": {
++          "package_name": "com.aistudio.justsay.app"
++        }
++      },
++      "oauth_client": [],
++      "api_key": [
++        {
++          "current_key": "AIzaSyDummyClientKeyForJustSayApp1234"
++        }
++      ],
++      "services": {
++        "appinvite_service": {
++          "other_platform_oauth_client": []
++        }
++      }
++    }
++  ],
++  "configuration_version": "1"
++}
+diff --git a/assets/.aistudio/.gitignore b/assets/.aistudio/.gitignore
+deleted file mode 100644
+index 72e8ffc..0000000
+--- a/assets/.aistudio/.gitignore
++++ /dev/null
+@@ -1 +0,0 @@
+-*
+diff --git a/debug.keystore.base64 b/debug.keystore.base64
+new file mode 100644
+index 0000000..a37067d
+--- /dev/null
++++ b/debug.keystore.base64
+@@ -0,0 +1 @@
++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
+\ No newline at end of file
