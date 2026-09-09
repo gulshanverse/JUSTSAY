@@ -19,11 +19,13 @@ export interface AppConfig {
   };
 
   objectStorage: {
-    provider: 'memory' | 'gcs' | 's3';
+    provider: 'memory' | 'gcs' | 's3' | 'supabase';
     bucketName: string;
     region: string;
     signedUrlTtlSeconds: number;
     maxFileSizeBytes: number;
+    supabaseUrl?: string;
+    supabaseServiceRoleKey?: string;
   };
 
   fcm: {
@@ -97,11 +99,13 @@ export function loadConfig(): AppConfig {
     },
 
     objectStorage: {
-      provider: (process.env.STORAGE_PROVIDER as any) || (env === 'production' ? 'gcs' : 'memory'),
+      provider: (process.env.STORAGE_PROVIDER as any) || (env === 'production' ? 'supabase' : 'memory'),
       bucketName: process.env.OBJECT_STORAGE_BUCKET || 'justsay-media-assets-prod',
       region: process.env.OBJECT_STORAGE_REGION || 'us-central1',
       signedUrlTtlSeconds: parseInt(process.env.STORAGE_SIGNED_URL_TTL || '3600', 10),
-      maxFileSizeBytes: 5 * 1024 * 1024 // 5MB
+      maxFileSizeBytes: 5 * 1024 * 1024, // 5MB
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY
     },
 
     fcm: {

@@ -1,6 +1,5 @@
 import { AppConfig } from '../../config/env.config';
 import { LoggerService } from '../observability/logging.service';
-import { StorageAdapter } from './media.service';
 
 export interface StorageObjectMetadata {
   key: string;
@@ -9,6 +8,20 @@ export interface StorageObjectMetadata {
   ownerId: string;
   createdAt: number;
   isPublic: boolean;
+}
+
+export interface StorageAdapter {
+  validateMagicBytes(buffer: Uint8Array): { valid: boolean; format?: string };
+  stripPrivateMetadata(buffer: Uint8Array): Uint8Array;
+  uploadAsset(
+    key: string,
+    data: Uint8Array,
+    mimeType: string,
+    ownerId: string,
+    isPublic?: boolean
+  ): Promise<StorageObjectMetadata>;
+  generateSignedDownloadUrl(key: string, requestingUserId?: string): Promise<string>;
+  deleteAsset(key: string, requestingUserId: string): Promise<boolean>;
 }
 
 export class ProductionObjectStorageAdapter implements StorageAdapter {
@@ -78,8 +91,8 @@ export class ProductionObjectStorageAdapter implements StorageAdapter {
     };
 
     this.objectsStore.set(key, meta);
-    this.logger.info(`Uploaded media asset ${key} to bucket ${this.config.bucketName} (${cleanData.length} bytes)`, {
-      meta: { ownerId, isPublic, mimeType: meta.mimeType }
+    this.logger.info(`Uploaded media asset ${key} to provider ${this.config.provider} bucket ${this.config.bucketName} (${cleanData.length} bytes)`, {
+      meta: { ownerId, isPublic, mimeType: meta.mimeType, provider: this.config.provider }
     });
 
     return meta;
@@ -97,9 +110,13 @@ export class ProductionObjectStorageAdapter implements StorageAdapter {
     }
 
     const expiresAt = Date.now() + this.config.signedUrlTtlSeconds * 1000;
-    const signedUrl = `https://storage.googleapis.com/${this.config.bucketName}/${key}?Signature=prod_signed_token_${expiresAt}&Expires=${expiresAt}`;
     
-    return signedUrl;
+    if (this.config.provider === 'supabase') {
+      const baseUrl = this.config.supabaseUrl || 'https://supabase.justsay.app';
+      return `${baseUrl}/storage/v1/object/sign/${this.config.bucketName}/${key}?token=prod_signed_token_${expiresAt}&Expires=${expiresAt}`;
+    }
+
+    return `https://storage.googleapis.com/${this.config.bucketName}/${key}?Signature=prod_signed_token_${expiresAt}&Expires=${expiresAt}`;
   }
 
   public async deleteAsset(key: string, requestingUserId: string): Promise<boolean> {

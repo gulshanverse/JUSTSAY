@@ -15,6 +15,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PATH="/app/node_modules/.bin:${PATH}"
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nodejs
@@ -23,4 +24,4 @@ COPY --from=builder /app /app
 
 USER nodejs
 
-CMD ["npx", "tsx", "apps/api/src/modules/workers/background-worker.service.ts"]
+CMD ["tsx", "apps/api/src/modules/workers/background-worker.service.ts"]

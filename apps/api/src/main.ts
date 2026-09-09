@@ -1,3 +1,4 @@
+import * as http from 'http';
 import { HealthController } from './modules/health/health.controller';
 import { MessagesController } from './modules/messages/messages.controller';
 import { AdminController } from './modules/admin/admin.controller';
@@ -112,5 +113,63 @@ export class JustSayApiServer {
       version: 'v1.0.0'
     };
   }
+}
+
+if (require.main === module) {
+  const apiServer = new JustSayApiServer();
+  const port = parseInt(process.env.PORT || '3000', 10);
+  const host = '0.0.0.0';
+
+  apiServer.initialize().then(() => {
+    const server = http.createServer(async (req, res) => {
+      const url = req.url || '/';
+      res.setHeader('Content-Type', 'application/json');
+
+      try {
+        if (url === '/health' || url === '/api/v1/health' || url === '/api/v1/health/liveness') {
+          res.statusCode = 200;
+          res.end(JSON.stringify(apiServer.prodHealthController.getLiveness()));
+          return;
+        }
+
+        if (url === '/api/v1/health/readiness') {
+          const readiness = apiServer.prodHealthController.getReadiness();
+          res.statusCode = readiness.status === 'NOT_READY' ? 503 : 200;
+          res.end(JSON.stringify(readiness));
+          return;
+        }
+
+        if (url === '/' || url === '/api/v1') {
+          res.statusCode = 200;
+          res.end(JSON.stringify(apiServer.getStatus()));
+          return;
+        }
+
+        res.statusCode = 404;
+        res.end(JSON.stringify({ error: 'Not Found', path: url }));
+      } catch (err: any) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
+      }
+    });
+
+    server.listen(port, host, () => {
+      console.log(`JUSTSAY Backend API Server running and listening on http://${host}:${port}`);
+    });
+
+    const shutdown = async (signal: string) => {
+      console.log(`Received ${signal}. Shutting down HTTP server and infrastructure cleanly...`);
+      server.close(async () => {
+        await apiServer.shutdown();
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+  }).catch((err) => {
+    console.error('Failed to start JUSTSAY Backend API Server:', err);
+    process.exit(1);
+  });
 }
 

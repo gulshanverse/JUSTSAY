@@ -13,6 +13,7 @@
   "dependencies": {
     "@justsay/contracts": "*",
     "@justsay/shared-types": "*",
-    "@justsay/validation": "*"
+    "@justsay/validation": "*",
+    "tsx": "^4.19.2"
   }
 }
